@@ -1,6 +1,7 @@
 from tkinter import *
-from tkinter import messagebox, filedialog
 import os
+import tensorflow as tf
+from PIL import ImageGrab, Image
 
 from PIL import ImageGrab
 
@@ -80,27 +81,45 @@ class Draw():
     def save_drawing(self):
         try:
             # Specify the file name and extension
-            file_name = "positionOneX.jpg"
+            file_name = "analyze.jpg"
 
-            # Get the path to the user's downloads folder
-            downloads_folder = os.path.join(os.path.expanduser("~"), "Downloads")
+            # Get the path to the folder where the script is located
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+
+            # Create the path to the AnalyzePictures folder
+            pictures_folder = os.path.join(script_dir, "AnalyzePictures")
+
+            # Create the AnalyzePictures folder if it doesn't exist
+            os.makedirs(pictures_folder, exist_ok=True)
 
             # Specify the complete file path
-            file_path = os.path.join(downloads_folder, file_name)
-
-            # Get the next available file path if the file already exists
-            inc = 0
-            while os.path.exists(file_path):
-                inc += 1
-                file_name = f"drawing{inc}.jpg"
-                file_path = os.path.join(downloads_folder, file_name)
+            file_path = os.path.join(pictures_folder, file_name)
 
             # Save the drawing
             x = self.root.winfo_rootx() + self.background.winfo_x()
             y = self.root.winfo_rooty() + self.background.winfo_y()
             x1 = x + self.background.winfo_width()
             y1 = y + self.background.winfo_height()
-            ImageGrab.grab().crop((x, y, x1, y1)).save(file_path)
+            ImageGrab.grab().crop((x + 100, y + 100, x + 290, y + 290)).save(file_path)
+
+            # Load the saved image
+            img = Image.open(file_path)
+            img = img.resize((64, 64))  # Resize the image to match the input size of the model
+            img = tf.keras.preprocessing.image.img_to_array(img)
+            img = img / 255.0  # Normalize the image
+
+            # Reshape the image to match the input shape expected by the model (batch size, height, width, channels)
+            img = img.reshape(1, 64, 64, 3)
+
+            # Load the trained model
+            model = tf.keras.models.load_model("tic_tac_toe_model.h5")
+
+            # Predict the class of the image using the loaded model
+            prediction = model.predict(img)
+            if prediction > 0.5:
+                print("The image is classified as an X.")
+            else:
+                print("The image is classified as an O.")
 
         except Exception as e:
             print("Error in saving the drawing:", str(e))
