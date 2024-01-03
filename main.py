@@ -86,6 +86,7 @@ class Draw:
         self.background.create_oval(x1, y1, x2, y2, fill=self.pointer, outline=self.pointer,
                                     width=1)
 
+    # Draws the board lines
     def draw_board(self):
         # Horizontal lines
         self.background.create_line(100, 300, 700, 300, width=5, fill='black')
@@ -95,6 +96,7 @@ class Draw:
         self.background.create_line(300, 100, 300, 700, width=5, fill='black')
         self.background.create_line(500, 100, 500, 700, width=5, fill='black')
 
+    # Resets board drawings, states, and functions
     def reset_board(self):
         # Clear the canvas
         self.background.delete('all')
@@ -112,11 +114,14 @@ class Draw:
         # Reset AI symbol
         self.first_move = FALSE
 
+    # General flow control
     def move_submitted(self):
         self.save_board()
-        self.update_board_states()
-        self.decide_move()
+        # Returns false if there is an illegal move, resets when an illegal move is made
+        if self.update_board_states():
+            self.decide_move()
 
+    # Saves an image of every slot in the folder Analyze pictures
     def save_board(self):
         try:
             # Specify the file name and extension
@@ -210,24 +215,48 @@ class Draw:
         except Exception as e:
             print("Error in saving the drawing:", str(e))
 
-
+    # Uses the screenshots from Analyze pictures to update the board state
+    # Returns False if it encounters an error, returns true otherwise
     def update_board_states(self):
+        move_count = 0
         for i in range(3):
             for j in range(3):
                 if self.board[i][j] == BoardState.EMPTY:
                     image_path = os.path.join("AnalyzePictures", f"slot{(i * 3) + (j + 1)}.jpg")
                     if self.has_drawing_in_square(image_path):
+                        move_count += 1
                         if self.is_x(image_path):
                             self.board[i][j] = BoardState.X
                             if not self.first_move:
                                 self.move_symbol = BoardState.O
+                            elif self.move_symbol is not BoardState.O:
+                                return self.illegal_move_error("Wrong symbol drawn.")
                         else:
                             self.board[i][j] = BoardState.O
                             if not self.first_move:
                                 self.move_symbol = BoardState.X
+                            elif self.move_symbol is not BoardState.X:
+                                return self.illegal_move_error("Wrong symbol drawn.")
                         self.first_move = TRUE
         print(self.board)
 
+        # Check for too many moves
+        if move_count > 1:
+            return self.illegal_move_error("Too many moves detected.")
+
+        # Check for no move
+        elif move_count < 1:
+            return self.illegal_move_error("No move detected.")
+        return True
+
+    # Used for resetting when move error is encountered
+    def illegal_move_error(self, message):
+        print("Illegal Move Error! " + message + " Resetting the board...")
+        time.sleep(3)
+        self.reset_board()
+        return False
+
+    # Determines if the slot has a symbol
     def has_drawing_in_square(self, image_path):
         # Load the image
         image = Image.open(image_path)
@@ -260,6 +289,7 @@ class Draw:
         else:
             return False
 
+    # Determines if the slot contains an 'X' or 'O' using the trained model
     def is_x(self, file_path):
         # Load the square
         img = Image.open(file_path)
@@ -279,6 +309,7 @@ class Draw:
             print("The image is classified as an O.")
             return False
 
+    # AI randomly chooses a slot to draw their move in
     def decide_move(self):
         empty_squares = []
         for i in range(3):
@@ -303,6 +334,7 @@ class Draw:
             # All squares are filled, and no winner, so it's a tie
             self.end_game(None)
 
+    # Draws the AI move
     def draw_move_symbol(self, row, col):
         x = 200 + col * 200
         y = 200 + row * 200
@@ -313,6 +345,7 @@ class Draw:
         else:
             self.background.create_oval(x - 50, y - 50, x + 50, y + 50, width=5, outline='red')
 
+    # Determines if there is a winner for the game
     def find_winner(self):
         # Check rows
         for row in self.board:
@@ -338,6 +371,7 @@ class Draw:
         # No winner
         return None
 
+    # Ends the game, initializes reset on the board
     def end_game(self, winning_symbol):
         if winning_symbol is None:
             self.result_label.config(text="It's a tie!")
