@@ -73,6 +73,9 @@ class Draw:
         self.move_symbol = BoardState.X
         self.first_move = FALSE
 
+        # Load the trained model
+        self.model = tf.keras.models.load_model("tic_tac_toe_model.h5")
+
     # Functions are defined here
 
     # Paint Function for Drawing the lines on Canvas
@@ -267,11 +270,8 @@ class Draw:
         # Reshape the image to match the input shape expected by the model (batch size, height, width, channels)
         img = img.reshape(1, 64, 64, 3)
 
-        # Load the trained model
-        model = tf.keras.models.load_model("tic_tac_toe_model.h5")
-
         # Predict the class of the image using the loaded model
-        prediction = model.predict(img)
+        prediction = self.model.predict(img)
         if prediction > 0.5:
             print("The image is classified as an X.")
             return True
