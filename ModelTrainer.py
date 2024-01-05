@@ -1,3 +1,7 @@
+# INF360 - Programming in Python
+# Oakley Cardwell
+# Midterm Project
+
 import os
 import random
 import numpy as np

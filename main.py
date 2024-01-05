@@ -1,4 +1,7 @@
-import time
+# INF360 - Programming in Python
+# Oakley Cardwell
+# Midterm Project
+
 from tkinter import *
 import os
 import tensorflow as tf
@@ -22,7 +25,7 @@ class Draw:
         # Defining title and Size of the Tkinter Window GUI
         self.root = root
         self.root.title("Tic-Tac-Toe AI")
-        self.root.geometry("1000x900")
+        self.root.geometry("1800x900")
         self.root.configure(background="navy")
 
         # Variable for pointer
@@ -39,9 +42,13 @@ class Draw:
         text.tag_add("tag_name", "1.0", "end")
         text.pack()
 
-        # Add a label to display the game result
-        self.result_label = Label(root, text="", font=("Arial", 20), bg="navy", fg="white")
-        self.result_label.pack()
+        # Configure the terminal alignment, font size and color of the text
+        self.terminal = Text(root, height=40, width=100)
+        self.terminal.tag_configure("tag_name", justify='left', font=('arial', 12), background='black',
+                                    foreground='white')
+        self.terminal.insert("1.0", "Terminal Output:\n")
+        self.terminal.tag_add("tag_name", "1.0", "end")
+        self.terminal.place(x=950, y=40)  # Positioned to the right of the game board
 
         # Reset Button to clear the entire screen and redraw the board
         self.clear_screen = Button(self.root, text="Reset", bd=4, bg='white', command=self.reset_board,
@@ -76,7 +83,18 @@ class Draw:
         # Load the trained model
         self.model = tf.keras.models.load_model("tic_tac_toe_model.h5")
 
+        # Display intro text on terminal board
+        self.terminal_write("Welcome to Tic-Tac-Toe AI v1.0 (beta)."
+                            "\nPress 'submit' to finish your turn."
+                            "\nThe game can be reset at any time using the 'reset' button. Have fun!")
+
     # Functions are defined here
+
+    # Write text to the terminal
+    def terminal_write(self, text):
+        self.terminal.insert(END, text + "\n\n")
+        # Auto-scroll to the bottom
+        self.terminal.see(END)
 
     # Paint Function for Drawing the lines on Canvas
     def paint(self, event):
@@ -120,6 +138,7 @@ class Draw:
         # Returns false if there is an illegal move, resets when an illegal move is made
         if self.update_board_states():
             self.decide_move()
+        self.terminal_write("Your turn!")
 
     # Saves an image of every slot in the folder Analyze pictures
     def save_board(self):
@@ -251,9 +270,10 @@ class Draw:
 
     # Used for resetting when move error is encountered
     def illegal_move_error(self, message):
+        self.terminal_write("Illegal Move Error! " + message + "\nResetting the board...")
         print("Illegal Move Error! " + message + " Resetting the board...")
-        time.sleep(3)
-        self.reset_board()
+        self.root.update_idletasks()
+        self.root.after(3000, self.reset_board())
         return False
 
     # Determines if the slot has a symbol
@@ -309,30 +329,78 @@ class Draw:
             print("The image is classified as an O.")
             return False
 
-    # AI randomly chooses a slot to draw their move in
+    # AI chooses a slot to draw their move in
     def decide_move(self):
+        # Collect the empty squares
         empty_squares = []
         for i in range(3):
             for j in range(3):
                 if self.board[i][j] == BoardState.EMPTY:
                     empty_squares.append((i, j))
 
-        if empty_squares:
-            # Randomly select an empty square
-            random_square = random.choice(empty_squares)
-            row, col = random_square
+        # If game is already over, return and end game
+        if self.check_for_end_game(empty_squares):
+            return
 
-            # Add the move_symbol to the selected square
-            self.board[row][col] = self.move_symbol
+        # First priority: Check if AI can win in the next move
+        for square in empty_squares:
+            if self.check_future_win(square, self.move_symbol):
+                self.make_move(square)
+                self.check_for_end_game(empty_squares)
+                return
 
-            # Draw the move_symbol on the board
-            self.draw_move_symbol(row, col)
+        # Second priority: Block opponent's win
+        opponent_symbol = BoardState.X if self.move_symbol == BoardState.O else BoardState.O
+        for square in empty_squares:
+            if self.check_future_win(square, opponent_symbol):
+                self.make_move(square)
+                self.check_for_end_game(empty_squares)
+                return
 
-        # Check for a winner
+        # Third priority: Take the middle square if available
+        if (1, 1) in empty_squares:
+            self.make_move((1, 1))
+            self.check_for_end_game(empty_squares)
+            return
+
+        # Last resort: Randomly select an empty square
+        random_square = random.choice(empty_squares)
+        self.make_move(random_square)
+
+        # Check for end game, ends game if found
+        self.check_for_end_game(empty_squares)
+
+    # Check for end game, ends game if found
+    def check_for_end_game(self, empty_squares):
         winner = self.find_winner()
-        if winner is None and len(empty_squares) == 0:
+        if winner is not None:
+            self.end_game(winner)
+            return True
+        elif len(empty_squares) == 0:
             # All squares are filled, and no winner, so it's a tie
             self.end_game(None)
+            return True
+        return False
+
+    def check_future_win(self, square, symbol):
+        # Temporarily make the move
+        row, col = square
+        original_state = self.board[row][col]
+        self.board[row][col] = symbol
+
+        if self.find_winner() == symbol:  # Check if this move wins the game
+            self.board[row][col] = original_state  # Reset the board
+            return True
+
+        self.board[row][col] = original_state  # Reset the board
+        return False
+
+    def make_move(self, square):
+        row, col = square
+        # Add the move_symbol to the selected square
+        self.board[row][col] = self.move_symbol
+        # Draw the move_symbol on the board
+        self.draw_move_symbol(row, col)
 
     # Draws the AI move
     def draw_move_symbol(self, row, col):
@@ -345,27 +413,23 @@ class Draw:
         else:
             self.background.create_oval(x - 50, y - 50, x + 50, y + 50, width=5, outline='red')
 
-    # Determines if there is a winner for the game
+    # Checks for a winner, does not end the game
     def find_winner(self):
         # Check rows
         for row in self.board:
             if row[0] != BoardState.EMPTY and row[0] == row[1] == row[2]:
-                self.end_game(row[0])
                 return row[0]
 
         # Check columns
         for col in range(3):
             if self.board[0][col] != BoardState.EMPTY:
                 if self.board[0][col] == self.board[1][col] == self.board[2][col]:
-                    self.end_game(self.board[0][col])
                     return self.board[0][col]
 
         # Check diagonals
         if self.board[0][0] != BoardState.EMPTY and self.board[0][0] == self.board[1][1] == self.board[2][2]:
-            self.end_game(self.board[0][0])
             return self.board[0][0]
         if self.board[0][2] != BoardState.EMPTY and self.board[0][2] == self.board[1][1] == self.board[2][0]:
-            self.end_game(self.board[0][2])
             return self.board[0][2]
 
         # No winner
@@ -374,17 +438,18 @@ class Draw:
     # Ends the game, initializes reset on the board
     def end_game(self, winning_symbol):
         if winning_symbol is None:
-            self.result_label.config(text="It's a tie!")
+            self.terminal_write("It's a tie!")
             print("It's a tie!")
         elif winning_symbol != self.move_symbol:
-            self.result_label.config(text="You win!")
             print("You win!")
+            self.terminal_write("You win!")
         else:
-            self.result_label.config(text="You lose!")
             print("You lose!")
+            self.terminal_write("You lose!")
         print("Resetting board...")
-        time.sleep(3)
-        self.reset_board()
+        self.terminal_write("Resetting board...")
+        self.root.update_idletasks()
+        self.root.after(3000, self.reset_board())
 
 
 if __name__ == "__main__":
