@@ -9,7 +9,14 @@ import random
 from PIL import ImageGrab, Image
 from enum import Enum
 from PIL import ImageGrab
+import logging
 
+
+# Configure logging
+logging.basicConfig(filename='ttt_ai.log', filemode='a',
+                    format='%(asctime)s - %(levelname)s - %(message)s', level=logging.DEBUG)
+
+logging.info("Starting the Tic-Tac-Toe AI program")
 
 # Defining the board state settings
 class BoardState(Enum):
@@ -88,6 +95,8 @@ class Draw:
                             "\nPress 'submit' to finish your turn."
                             "\nThe game can be reset at any time using the 'reset' button. Have fun!")
 
+        #
+
     # Functions are defined here
 
     # Write text to the terminal
@@ -95,6 +104,8 @@ class Draw:
         self.terminal.insert(END, text + "\n\n")
         # Auto-scroll to the bottom
         self.terminal.see(END)
+
+        logging.debug("Terminal text written.")
 
     # Paint Function for Drawing the lines on Canvas
     def paint(self, event):
@@ -114,6 +125,8 @@ class Draw:
         self.background.create_line(300, 100, 300, 700, width=5, fill='black')
         self.background.create_line(500, 100, 500, 700, width=5, fill='black')
 
+        logging.debug("Board drawn.")
+
     # Resets board drawings, states, and functions
     def reset_board(self):
         # Clear the canvas
@@ -131,13 +144,16 @@ class Draw:
 
         # Reset AI symbol
         self.first_move = FALSE
+        logging.info("Board reset.")
 
     # General flow control
     def move_submitted(self):
+        logging.info("Player move submitted")
         self.save_board()
         # Returns false if there is an illegal move, resets when an illegal move is made
         if self.update_board_states():
             self.decide_move()
+            logging.info("AI move completed")
         self.terminal_write("Your turn!")
 
     # Saves an image of every slot in the folder Analyze pictures
@@ -231,8 +247,10 @@ class Draw:
             # Save the screenshot of correct square
             ImageGrab.grab().crop((x + 505, y + 505, x + 695, y + 695)).save(file_path)
 
+            # Log success
+            logging.info("Board successfully saved")
         except Exception as e:
-            print("Error in saving the drawing:", str(e))
+            logging.critical("Error in saving the board: " + str(e))
 
     # Uses the screenshots from Analyze pictures to update the board state
     # Returns False if it encounters an error, returns true otherwise
@@ -266,10 +284,14 @@ class Draw:
         # Check for no move
         elif move_count < 1:
             return self.illegal_move_error("No move detected.")
+
+        # Log success and return
+        logging.info("Board states updated successfully")
         return True
 
     # Used for resetting when move error is encountered
     def illegal_move_error(self, message):
+        logging.warning("Illegal Move Error! " + message + " Resetting the board...")
         self.terminal_write("Illegal Move Error! " + message + "\nResetting the board...")
         print("Illegal Move Error! " + message + " Resetting the board...")
         self.root.update_idletasks()
@@ -301,7 +323,12 @@ class Draw:
         # Calculate the percentage of black pixels
         black_pixel_percentage = (black_pixel_count / total_pixels) * 100
 
-        print("Black percentage: " + str(black_pixel_percentage))
+        # Grab base name of file path
+        base_name = os.path.basename(image_path)
+
+        # Log the assessment info
+        print("Black percentage of " + base_name + " : " + str(black_pixel_percentage))
+        logging.info("Black percentage of " + base_name + " : " + str(black_pixel_percentage))
 
         # Determine if the image is mostly white
         if black_pixel_percentage > 1:
@@ -322,11 +349,18 @@ class Draw:
 
         # Predict the class of the image using the loaded model
         prediction = self.model.predict(img)
+
+        # Grab the base name of file to log
+        base_name = os.path.basename(file_path)
+
+        # Make prediction on symbol, log result
         if prediction > 0.5:
-            print("The image is classified as an X.")
+            print(base_name + "is classified as X")
+            logging.info(base_name + "is classified as X")
             return True
         else:
-            print("The image is classified as an O.")
+            print(base_name + "is classified as 0")
+            logging.info(base_name + "is classified as 0")
             return False
 
     # AI chooses a slot to draw their move in
@@ -347,6 +381,7 @@ class Draw:
             if self.check_future_win(square, self.move_symbol):
                 self.make_move(square)
                 self.check_for_end_game(empty_squares)
+                logging.debug("AI found winning move")
                 return
 
         # Second priority: Block opponent's win
@@ -355,23 +390,27 @@ class Draw:
             if self.check_future_win(square, opponent_symbol):
                 self.make_move(square)
                 self.check_for_end_game(empty_squares)
+                logging.debug("AI blocked potential win.")
                 return
 
         # Third priority: Take the middle square if available
         if (1, 1) in empty_squares:
             self.make_move((1, 1))
             self.check_for_end_game(empty_squares)
+            logging.debug("AI took the open middle square.")
             return
 
         # Last resort: Randomly select an empty square
         random_square = random.choice(empty_squares)
         self.make_move(random_square)
+        logging.debug("AI chose a random square.")
 
         # Check for end game, ends game if found
         self.check_for_end_game(empty_squares)
 
     # Check for end game, ends game if found
     def check_for_end_game(self, empty_squares):
+        logging.debug("Checking for end game.")
         winner = self.find_winner()
         if winner is not None:
             self.end_game(winner)
@@ -383,6 +422,7 @@ class Draw:
         return False
 
     def check_future_win(self, square, symbol):
+        logging.debug("Checking for potential win.")
         # Temporarily make the move
         row, col = square
         original_state = self.board[row][col]
@@ -390,6 +430,7 @@ class Draw:
 
         if self.find_winner() == symbol:  # Check if this move wins the game
             self.board[row][col] = original_state  # Reset the board
+            logging.debug("Potential win found.")
             return True
 
         self.board[row][col] = original_state  # Reset the board
@@ -415,24 +456,30 @@ class Draw:
 
     # Checks for a winner, does not end the game
     def find_winner(self):
+        logging.debug("Checking for winner.")
         # Check rows
         for row in self.board:
             if row[0] != BoardState.EMPTY and row[0] == row[1] == row[2]:
+                logging.debug("Winner found.")
                 return row[0]
 
         # Check columns
         for col in range(3):
             if self.board[0][col] != BoardState.EMPTY:
                 if self.board[0][col] == self.board[1][col] == self.board[2][col]:
+                    logging.debug("Winner found.")
                     return self.board[0][col]
 
         # Check diagonals
         if self.board[0][0] != BoardState.EMPTY and self.board[0][0] == self.board[1][1] == self.board[2][2]:
+            logging.debug("Winner found.")
             return self.board[0][0]
         if self.board[0][2] != BoardState.EMPTY and self.board[0][2] == self.board[1][1] == self.board[2][0]:
+            logging.debug("Winner found.")
             return self.board[0][2]
 
         # No winner
+        logging.debug("No winner found.")
         return None
 
     # Ends the game, initializes reset on the board
@@ -440,14 +487,18 @@ class Draw:
         if winning_symbol is None:
             self.terminal_write("It's a tie!")
             print("It's a tie!")
+            logging.info("Game ended in a tie")
         elif winning_symbol != self.move_symbol:
             print("You win!")
             self.terminal_write("You win!")
+            logging.info("The user won the game")
         else:
             print("You lose!")
             self.terminal_write("You lose!")
+            logging.info("The AI won the game")
         print("Resetting board...")
         self.terminal_write("Resetting board...")
+        logging.info("Board reset")
         self.root.update_idletasks()
         self.root.after(3000, self.reset_board())
 
