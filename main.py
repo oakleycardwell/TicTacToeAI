@@ -2,14 +2,40 @@
 # Oakley Cardwell
 # Midterm Project
 
-from tkinter import *
+# **********************************
+# REQUIRED MODULES:
+# tkinter
+# PIL
+# enum
+# tensorflow
+# **********************************
+
+# This program is a Tic-Tac-Toe game, powered by AI.
+# It uses a Concurrent Neural Network to recognize what symbols you draw.
+# To play, simply draw a symbol with your mouse (either 'X' or 'O') and click submit.
+# The game can be reset at any time with the reset button.
+
+
 import os
-import tensorflow as tf
 import random
-from PIL import ImageGrab, Image
-from enum import Enum
-from PIL import ImageGrab
 import logging
+
+try:
+    from tkinter import *
+except ImportError:
+    print("tkinter is not available.")
+try:
+    from PIL import ImageGrab, Image
+except ImportError:
+    print("PIL (Pillow) is not available.")
+try:
+    from enum import Enum
+except ImportError:
+    print("enum is not available in this environment.")
+try:
+    import tensorflow as tf
+except ImportError:
+    print("TensorFlow is not available.")
 
 
 # Configure logging
