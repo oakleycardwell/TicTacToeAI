@@ -15,6 +15,9 @@
 # To play, simply draw a symbol with your mouse (either 'X' or 'O') and click submit.
 # The game can be reset at any time with the reset button.
 
+# Important! There is currently a bug, where if you move the program from the
+# monitor it starts on, the program will not work.
+
 
 import os
 import random
@@ -23,19 +26,19 @@ import logging
 try:
     from tkinter import *
 except ImportError:
-    print("tkinter is not available.")
+    print("tkinter is not installed.")
 try:
     from PIL import ImageGrab, Image
 except ImportError:
-    print("PIL (Pillow) is not available.")
+    print("PIL (Pillow) is not installed.")
 try:
     from enum import Enum
 except ImportError:
-    print("enum is not available in this environment.")
+    print("enum is not installed.")
 try:
     import tensorflow as tf
 except ImportError:
-    print("TensorFlow is not available.")
+    print("TensorFlow is not installed.")
 
 
 # Configure logging
